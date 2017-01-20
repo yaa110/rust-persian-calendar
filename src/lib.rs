@@ -1,5 +1,23 @@
 // In the name of Allah
 
+//! Provides functionality for conversion among Persian (Solar Hijri) and Gregorian calendars.
+//! A Julian calendar is used as an interface for all conversions.
+//! The crate name is ptime and it is compatible with the crate [time](https://crates.io/crates/time).
+//! This source code is licensed under MIT license that can be found in the LICENSE file.
+//!
+//! # Example
+//! ```
+//! extern crate ptime;
+//!
+//! fn main() {
+//!     let p_tm = ptime::from_gregorian_date(2016, 2, 21).unwrap();
+//!
+//!     assert_eq!(p_tm.tm_year, 1395);
+//!     assert_eq!(p_tm.tm_mon, 0);
+//!     assert_eq!(p_tm.tm_mday, 2);
+//! }
+//! ```
+
 extern crate time;
 
 use std::cmp::Ordering;
@@ -53,16 +71,18 @@ impl fmt::Display for Tm {
 impl Add<time::Duration> for Tm {
     type Output = Tm;
 
+    // FIXME: The timezone of `self` is different from resulting time
     fn add(self, other: time::Duration) -> Tm {
-        at_tm(&self, self.to_timespec() + other)
+        at_utc(self.to_timespec() + other)
     }
 }
 
 impl Sub<time::Duration> for Tm {
     type Output = Tm;
 
+    // FIXME: The timezone of `self` is different from resulting time
     fn sub(self, other: time::Duration) -> Tm {
-        at_tm(&self, self.to_timespec() - other)
+        at_utc(self.to_timespec() - other)
     }
 }
 
@@ -70,6 +90,14 @@ impl Sub<Tm> for Tm {
     type Output = time::Duration;
 
     fn sub(self, other: Tm) -> time::Duration {
+        self.to_timespec() - other.to_timespec()
+    }
+}
+
+impl Sub<time::Tm> for Tm {
+    type Output = time::Duration;
+
+    fn sub(self, other: time::Tm) -> time::Duration {
         self.to_timespec() - other.to_timespec()
     }
 }
@@ -270,9 +298,25 @@ impl Tm {
                                          }))
             .replace("mm", &format!("{:02}", self.tm_min))
             .replace("m", &self.tm_min.to_string())
-            .replace("mm", &format!("{:02}", self.tm_sec))
-            .replace("m", &self.tm_sec.to_string())
             .replace("ns", &self.tm_nsec.to_string())
+            .replace("ss", &format!("{:02}", self.tm_sec))
+            .replace("s", &self.tm_sec.to_string())
+    }
+}
+
+pub fn empty_tm() -> Tm {
+    Tm {
+        tm_sec: 0,
+        tm_min: 0,
+        tm_hour: 0,
+        tm_mday: 0,
+        tm_mon: 0,
+        tm_year: 0,
+        tm_wday: 0,
+        tm_yday: 0,
+        tm_isdst: 0,
+        tm_utcoff: 0,
+        tm_nsec: 0,
     }
 }
 
@@ -286,7 +330,7 @@ pub fn from_gregorian(gregorian_tm:time::Tm) -> Tm {
     let jdn: i32 = if gy > 1582 || (gy == 1582 && gm > 10) || (gy == 1582 && gm == 10 && gd > 14) {
         ((1461 * (gy + 4800 + ((gm - 14) / 12))) / 4) + ((367 * (gm - 2 - 12*((gm-14)/12))) / 12) - ((3 * ((gy + 4900 + ((gm - 14) / 12)) / 100)) / 4) + gd - 32075
     } else {
-        367*gy - ((7 * (gy + 5001 + ((gm - 9) / 7))) / 4) + ((275 * gm) / 9) + gd + 1729777
+        367 * gy - ((7 * (gy + 5001 + ((gm - 9) / 7))) / 4) + ((275 * gm) / 9) + gd + 1729777
     };
 
     let dep = jdn - get_jdn(475, 1, 1);
@@ -312,7 +356,7 @@ pub fn from_gregorian(gregorian_tm:time::Tm) -> Tm {
         let mod_dy: f64 = (dy - 6f64) / 30f64;
         mod_dy.ceil() as i32
     } - 1;
-    let day = jdn - get_jdn(year, month, 1) + 1;
+    let day = jdn - get_jdn(year, month + 1, 1) + 1;
 
     Tm {
         tm_sec: gregorian_tm.tm_sec,
@@ -331,16 +375,16 @@ pub fn from_gregorian(gregorian_tm:time::Tm) -> Tm {
 
 /// Creates a new instance of Persian time from Gregorian date
 pub fn from_gregorian_date(g_year: i32, g_month: i32, g_day: i32) -> Option<Tm> {
-    from_gregorian_components(g_year, g_month, g_day, 0, 0, 0, 0, 0)
+    from_gregorian_components(g_year, g_month, g_day, 0, 0, 0, 0)
 }
 
 /// Creates a new instance of Persian time from Persian date
 pub fn from_persian_date(p_year: i32, p_month: i32, p_day: i32) -> Option<Tm> {
-    from_persian_components(p_year, p_month, p_day, 0, 0, 0, 0, 0)
+    from_persian_components(p_year, p_month, p_day, 0, 0, 0, 0)
 }
 
 /// Creates a new instance of Persian time from Gregorian date components
-pub fn from_gregorian_components(g_year: i32, g_month: i32, g_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32, utc_diff: i32) -> Option<Tm> {
+pub fn from_gregorian_components(g_year: i32, g_month: i32, g_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32) -> Option<Tm> {
     if is_time_valid(hour, minute, second, nanosecond) && is_gregorian_date_valid(g_year, g_month, g_day) {
         let tm = time::Tm{
             tm_sec: second,
@@ -351,22 +395,18 @@ pub fn from_gregorian_components(g_year: i32, g_month: i32, g_day: i32, hour: i3
             tm_year: g_year - 1900,
             tm_wday: 0,
             tm_yday: 0,
-            tm_isdst: if utc_diff == 0 {
-                          0
-                      } else {
-                          1
-                      },
-            tm_utcoff: utc_diff,
+            tm_isdst: 0,
+            tm_utcoff: 0,
             tm_nsec: nanosecond,
         };
-        return Some(at(tm.to_timespec()))
+        return Some(at_utc(tm.to_timespec()))
     }
     None
 }
 
 /// Creates a new instance of Persian time from Persian date components
 // FIXME: Calculate the weekday without converting to Gregorian calendar
-pub fn from_persian_components(p_year: i32, p_month: i32, p_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32, utc_diff: i32) -> Option<Tm> {
+pub fn from_persian_components(p_year: i32, p_month: i32, p_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32) -> Option<Tm> {
     if is_time_valid(hour, minute, second, nanosecond) && is_persian_date_valid(p_year, p_month, p_day) {
         let mut tm = Tm{
             tm_sec: second,
@@ -377,15 +417,11 @@ pub fn from_persian_components(p_year: i32, p_month: i32, p_day: i32, hour: i32,
             tm_year: p_year,
             tm_wday: 0,
             tm_yday: get_persian_yday(p_month, p_day),
-            tm_isdst: if utc_diff == 0 {
-                          0
-                      } else {
-                          1
-                      },
-            tm_utcoff: utc_diff,
+            tm_isdst: 0,
+            tm_utcoff: 0,
             tm_nsec: nanosecond,
         };
-        tm.tm_wday = tm.to_gregorian().tm_wday;
+        tm.tm_wday = get_persian_weekday(time::at_utc(tm.to_timespec()).tm_wday);
         return Some(tm)
     }
     None
@@ -399,14 +435,6 @@ pub fn at_utc(clock: time::Timespec) -> Tm {
 /// Creates a new instance of Persian time from the number of seconds since January 1, 1970 in the local timezone
 pub fn at(clock: time::Timespec) -> Tm {
     from_gregorian(time::at(clock))
-}
-
-/// Creates a new instance of Persian time from the number of seconds since January 1, 1970 in the src timezone
-pub fn at_tm(src: &Tm, clock: time::Timespec) -> Tm {
-    let mut tm = from_gregorian(time::at(clock));
-    tm.tm_isdst = src.tm_isdst;
-    tm.tm_utcoff = src.tm_utcoff;
-    tm
 }
 
 /// Creates a new instance of Persian time corresponding to the current time in UTC
