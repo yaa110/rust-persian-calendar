@@ -1,7 +1,7 @@
 Rust Persian Calendar
 =====================
 
-[![crates.io](https://img.shields.io/crates/v/ptime.svg)](https://crates.io/crates/ptime) [![Build Status](https://travis-ci.org/yaa110/rust-persian-calendar.svg)](https://travis-ci.org/yaa110/rust-persian-calendar) [![License](http://img.shields.io/:license-mit-blue.svg)](https://github.com/yaa110/go-persian-calendar/blob/master/LICENSE)
+[![crates.io](https://img.shields.io/crates/v/ptime.svg)](https://crates.io/crates/ptime) [![Documentation](https://img.shields.io/badge/Docs-ptime-blue.svg)](https://docs.rs/ptime/0.1.0/ptime) [![Build Status](https://travis-ci.org/yaa110/rust-persian-calendar.svg)](https://travis-ci.org/yaa110/rust-persian-calendar) [![License](http://img.shields.io/:license-mit-blue.svg)](https://github.com/yaa110/go-persian-calendar/blob/master/LICENSE)
 
 **Rust Persian Calendar v0.1.0** provides functionality for conversion among Persian (Solar Hijri) and Gregorian calendars. A Julian calendar is used as an interface for all conversions. The crate name is `ptime` and it is compatible with the crate [time](https://crates.io/crates/time). This source code is licensed under MIT license that can be found in the LICENSE file.
 

@@ -304,6 +304,7 @@ impl Tm {
     }
 }
 
+/// Creates an empty `ptime::Tm`
 pub fn empty_tm() -> Tm {
     Tm {
         tm_sec: 0,
