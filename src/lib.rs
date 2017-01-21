@@ -560,7 +560,7 @@ fn is_persian_date_valid(year: i32, month: i32, day: i32) -> bool {
         [30, 30],
         [30, 30],
         [29, 30],
-    ][month as usize][is_gregorian_leap(year) as usize] >= day
+    ][month as usize][is_persian_leap(year) as usize] >= day
 }
 
 fn is_gregorian_date_valid(year: i32, month: i32, day: i32) -> bool {

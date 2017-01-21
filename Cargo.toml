@@ -1,6 +1,6 @@
 [package]
 name = "ptime"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Navid Fathollahzade <yaa110@gmail.com>"]
 
 description = "The implementation of the Persian (Solar Hijri) Calendar"
