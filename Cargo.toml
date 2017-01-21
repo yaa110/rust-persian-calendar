@@ -3,5 +3,17 @@ name = "ptime"
 version = "0.1.0"
 authors = ["Navid Fathollahzade <yaa110@gmail.com>"]
 
+description = "The implementation of the Persian (Solar Hijri) Calendar"
+homepage = "https://github.com/yaa110/rust-persian-calendar"
+documentation = "https://github.com/yaa110/rust-persian-calendar"
+repository = "https://github.com/yaa110/rust-persian-calendar"
+readme = "README.md"
+keywords = ["persian", "calendar", "date", "shamsi", "time"]
+categories = ["date-and-time"]
+license = "MIT"
+
+[lib]
+name = "ptime"
+
 [dependencies]
 time = "0.1"
