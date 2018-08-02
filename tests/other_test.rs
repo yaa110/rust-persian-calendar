@@ -1,5 +1,5 @@
 extern crate ptime;
-extern crate time;
+use ptime::Duration;
 
 #[test]
 fn leap_years() {
@@ -25,7 +25,7 @@ fn non_leap_years() {
 fn operators() {
     let p_tm1 = ptime::from_persian_date(1395, 0, 1).unwrap();
     let p_tm2 = ptime::from_gregorian_date(2016, 2, 21).unwrap();
-    assert_eq!(p_tm2 - p_tm1, time::Duration::seconds(24 * 3600));
+    assert_eq!(p_tm2 - p_tm1, Duration::seconds(24 * 3600));
     assert_eq!(p_tm2 > p_tm1, true);
     assert_eq!(p_tm2 < p_tm1, false);
     assert_eq!(p_tm2 == p_tm1, false);
