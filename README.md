@@ -10,16 +10,14 @@ Add `ptime = "0.1"` to `dependencies` section of `Cargo.toml`:
 
 ```toml
 [dependencies]
-time = "0.1"
 ptime = "0.1"
 ```
 
 ## Getting started
-1- Import the crate `ptime`. Most of the time you need to import `time` crate, too.
+1- Import the crate `ptime`.
 
 ```rust
 extern crate ptime;
-extern crate time;
 ```
 
 2- Convert Gregorian calendar to Persian calendar.
@@ -55,7 +53,7 @@ println!("Current time at UTC: {}", p_tm_utc);
 5- Format the time.
 
 ```rust
-let p_tm = ptime::from_gregorian(time::now());
+let p_tm = ptime::now();
 println!("{}", p_tm.to_string("yyyy-MM-dd HH:mm:ss.ns"));
 
 ///     yyyy, yyy, y     year (e.g. 1394)

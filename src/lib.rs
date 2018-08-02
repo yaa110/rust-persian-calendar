@@ -19,6 +19,7 @@
 //! ```
 
 extern crate time;
+pub use time::Duration;
 
 use std::cmp::Ordering;
 use std::ops::{Add, Sub};
@@ -189,6 +190,8 @@ impl Tm {
     }
 
     /// Returns the formatted representation of time
+    /// 
+    /// ```text
     ///     yyyy, yyy, y     year (e.g. 1394)
     ///     yy               2-digits representation of year (e.g. 94)
     ///     MMM              the Persian name of month (e.g. فروردین)
@@ -215,6 +218,7 @@ impl Tm {
     ///     ss               2-digits representation of seconds [00-59]
     ///     s                seconds [0-59]
     ///     ns               nanoseconds
+    /// ```
     pub fn to_string<'a>(&'a self, format: &'a str) -> String {
         format
             .replace("yyyy", &self.tm_year.to_string())
