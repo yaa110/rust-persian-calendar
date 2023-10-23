@@ -21,8 +21,8 @@
 extern crate time;
 
 use std::cmp::Ordering;
-use std::ops::{Add, Sub};
 use std::fmt;
+use std::ops::{Add, Sub};
 
 /// Represents the components of a moment in time in Persian Calendar.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
@@ -117,49 +117,16 @@ impl Ord for Tm {
 impl Tm {
     /// Converts Persian calendar to Gregorian calendar
     pub fn to_gregorian(&self) -> time::Tm {
-        let year: i32;
-        let month: i32;
-        let day: i32;
+        let jdn = fixed_get_jdn(self);
 
-        let jdn = get_jdn(self.tm_year, self.tm_mon + 1, self.tm_mday);
+        let mut seconds = jdn as i64 * 86_400;
+        seconds += self.tm_hour as i64 * 3600;
+        seconds += self.tm_min as i64 * 60;
+        seconds += self.tm_sec as i64;
+        let ts = time::Timespec { sec: seconds, nsec: self.tm_nsec};
+        let time_tm = time::at_utc(ts);
 
-        if jdn > 2299160 {
-            let mut l = jdn + 68569;
-            let n = 4 * l / 146097;
-            l = l - (146097 * n + 3) / 4;
-            let i = 4000 * (l + 1) / 1461001;
-            l = l - 1461 * i / 4 + 31;
-            let j = 80 * l / 2447;
-            day = l - 2447 * j / 80;
-            l = j / 11;
-            month = j + 2 - 12 * l;
-            year = 100 * (n - 49) + i + l;
-        } else {
-            let mut j = jdn + 1402;
-            let k = (j - 1) / 1461;
-            let l = j - 1461 * k;
-            let n = (l - 1) / 365 - l / 1461;
-            let mut i = l - 365 * n + 30;
-            j = 80 * i / 2447;
-            day = i - 2447 * j / 80;
-            i = j / 11;
-            month = j + 2 - 12 * i;
-            year = 4 * k + n + i - 4716;
-        }
-
-        time::Tm {
-            tm_sec: self.tm_sec,
-            tm_min: self.tm_min,
-            tm_hour: self.tm_hour,
-            tm_mday: day,
-            tm_mon: month - 1,
-            tm_year: year - 1900,
-            tm_wday: get_gregorian_weekday(self.tm_wday),
-            tm_yday: get_gregorian_yday(year, month - 1, day),
-            tm_isdst: self.tm_isdst,
-            tm_utcoff: self.tm_utcoff,
-            tm_nsec: self.tm_nsec,
-        }
+        time_tm
     }
 
     /// Returns the number of seconds since January 1, 1970 UTC
@@ -176,7 +143,7 @@ impl Tm {
     pub fn to_local(&self) -> Tm {
         match self.tm_utcoff {
             0 => at(self.to_timespec()),
-            _ => *self
+            _ => *self,
         }
     }
 
@@ -184,7 +151,7 @@ impl Tm {
     pub fn to_utc(&self) -> Tm {
         match self.tm_utcoff {
             0 => *self,
-            _ => at_utc(self.to_timespec())
+            _ => at_utc(self.to_timespec()),
         }
     }
 
@@ -221,81 +188,113 @@ impl Tm {
             .replace("yyy", &self.tm_year.to_string())
             .replace("yy", &self.tm_year.to_string()[2..])
             .replace("y", &self.tm_year.to_string())
-            .replace("MMM", match self.tm_mon {
-                                0 => "فروردین",
-                                1 => "اردیبهشت",
-                                2 => "خرداد",
-                                3 => "تیر",
-                                4 => "مرداد",
-                                5 => "شهریور",
-                                6 => "مهر",
-                                7 => "آبان",
-                                8 => "آذر",
-                                9 => "دی",
-                                10 => "بهمن",
-                                11 => "اسفند",
-                                _ => panic!("invalid month value of {}", self.tm_mon),
-                            })
+            .replace(
+                "MMM",
+                match self.tm_mon {
+                    0 => "فروردین",
+                    1 => "اردیبهشت",
+                    2 => "خرداد",
+                    3 => "تیر",
+                    4 => "مرداد",
+                    5 => "شهریور",
+                    6 => "مهر",
+                    7 => "آبان",
+                    8 => "آذر",
+                    9 => "دی",
+                    10 => "بهمن",
+                    11 => "اسفند",
+                    _ => panic!("invalid month value of {}", self.tm_mon),
+                },
+            )
             .replace("MM", &format!("{:02}", self.tm_mon + 1))
             .replace("M", &format!("{}", self.tm_mon + 1))
             .replace("DD", &format!("{}", self.tm_yday + 1))
             .replace("D", &self.tm_yday.to_string())
             .replace("dd", &format!("{:02}", self.tm_mday))
             .replace("d", &self.tm_mday.to_string())
-            .replace("E", match self.tm_wday {
-                              0 => "شنبه",
-                              1 => "یک‌شنبه",
-                              2 => "دوشنبه",
-                              3 => "سه‌شنبه",
-                              4 => "چهارشنبه",
-                              5 => "پنج‌شنبه",
-                              6 => "جمعه",
-                              _ => panic!("invalid weekday value of {}", self.tm_wday),
-                          })
-            .replace("e", match self.tm_wday {
-                              0 => "ش",
-                              1 => "ی",
-                              2 => "د",
-                              3 => "س",
-                              4 => "چ",
-                              5 => "پ",
-                              6 => "ج",
-                              _ => panic!("invalid weekday value of {}", self.tm_wday),
-                          })
-            .replace("A", if self.tm_hour < 12 {
-                              "قبل از ظهر"
-                          } else {
-                              "بعد از ظهر"
-                          })
-            .replace("a", if self.tm_hour < 12 {
-                              "ق.ظ"
-                          } else {
-                              "ب.ظ"
-                          })
+            .replace(
+                "E",
+                match self.tm_wday {
+                    0 => "شنبه",
+                    1 => "یک‌شنبه",
+                    2 => "دوشنبه",
+                    3 => "سه‌شنبه",
+                    4 => "چهارشنبه",
+                    5 => "پنج‌شنبه",
+                    6 => "جمعه",
+                    _ => panic!("invalid weekday value of {}", self.tm_wday),
+                },
+            )
+            .replace(
+                "e",
+                match self.tm_wday {
+                    0 => "ش",
+                    1 => "ی",
+                    2 => "د",
+                    3 => "س",
+                    4 => "چ",
+                    5 => "پ",
+                    6 => "ج",
+                    _ => panic!("invalid weekday value of {}", self.tm_wday),
+                },
+            )
+            .replace(
+                "A",
+                if self.tm_hour < 12 {
+                    "قبل از ظهر"
+                } else {
+                    "بعد از ظهر"
+                },
+            )
+            .replace("a", if self.tm_hour < 12 { "ق.ظ" } else { "ب.ظ" })
             .replace("HH", &format!("{:02}", self.tm_hour))
             .replace("H", &self.tm_hour.to_string())
             .replace("kk", &format!("{:02}", self.tm_hour + 1))
             .replace("k", &format!("{}", self.tm_hour + 1))
-            .replace("hh", &format!("{:02}", if self.tm_hour > 11 {
-                                                 self.tm_hour - 12
-                                             } else {
-                                                 self.tm_hour
-                                             } + 1))
-            .replace("h", &format!("{}", if self.tm_hour > 11 {
-                                             self.tm_hour - 12
-                                         } else {
-                                             self.tm_hour
-                                         } + 1))
-            .replace("KK", &format!("{:02}", if self.tm_hour > 11 {
-                                                 self.tm_hour - 12
-                                             } else {
-                                                 self.tm_hour
-                                             }))
-            .replace("K", &format!("{}", if self.tm_hour > 11 {
-                                             self.tm_hour - 12
-                                         } else {
-                                             self.tm_hour
-                                         }))
+            .replace(
+                "hh",
+                &format!(
+                    "{:02}",
+                    if self.tm_hour > 11 {
+                        self.tm_hour - 12
+                    } else {
+                        self.tm_hour
+                    } + 1
+                ),
+            )
+            .replace(
+                "h",
+                &format!(
+                    "{}",
+                    if self.tm_hour > 11 {
+                        self.tm_hour - 12
+                    } else {
+                        self.tm_hour
+                    } + 1
+                ),
+            )
+            .replace(
+                "KK",
+                &format!(
+                    "{:02}",
+                    if self.tm_hour > 11 {
+                        self.tm_hour - 12
+                    } else {
+                        self.tm_hour
+                    }
+                ),
+            )
+            .replace(
+                "K",
+                &format!(
+                    "{}",
+                    if self.tm_hour > 11 {
+                        self.tm_hour - 12
+                    } else {
+                        self.tm_hour
+                    }
+                ),
+            )
             .replace("mm", &format!("{:02}", self.tm_min))
             .replace("m", &self.tm_min.to_string())
             .replace("ns", &self.tm_nsec.to_string())
@@ -322,14 +321,18 @@ pub fn empty_tm() -> Tm {
 }
 
 /// Converts Gregorian calendar to Persian calendar
-pub fn from_gregorian(gregorian_tm:time::Tm) -> Tm {
+pub fn from_gregorian(gregorian_tm: time::Tm) -> Tm {
     let mut year: i32;
     let gy = gregorian_tm.tm_year + 1900;
     let gm = gregorian_tm.tm_mon + 1;
     let gd = gregorian_tm.tm_mday;
 
     let jdn: i32 = if gy > 1582 || (gy == 1582 && gm > 10) || (gy == 1582 && gm == 10 && gd > 14) {
-        ((1461 * (gy + 4800 + ((gm - 14) / 12))) / 4) + ((367 * (gm - 2 - 12*((gm-14)/12))) / 12) - ((3 * ((gy + 4900 + ((gm - 14) / 12)) / 100)) / 4) + gd - 32075
+        ((1461 * (gy + 4800 + ((gm - 14) / 12))) / 4)
+            + ((367 * (gm - 2 - 12 * ((gm - 14) / 12))) / 12)
+            - ((3 * ((gy + 4900 + ((gm - 14) / 12)) / 100)) / 4)
+            + gd
+            - 32075
     } else {
         367 * gy - ((7 * (gy + 5001 + ((gm - 9) / 7))) / 4) + ((275 * gm) / 9) + gd + 1729777
     };
@@ -385,9 +388,19 @@ pub fn from_persian_date(p_year: i32, p_month: i32, p_day: i32) -> Option<Tm> {
 }
 
 /// Creates a new instance of Persian time from Gregorian date components
-pub fn from_gregorian_components(g_year: i32, g_month: i32, g_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32) -> Option<Tm> {
-    if is_time_valid(hour, minute, second, nanosecond) && is_gregorian_date_valid(g_year, g_month, g_day) {
-        let tm = time::Tm{
+pub fn from_gregorian_components(
+    g_year: i32,
+    g_month: i32,
+    g_day: i32,
+    hour: i32,
+    minute: i32,
+    second: i32,
+    nanosecond: i32,
+) -> Option<Tm> {
+    if is_time_valid(hour, minute, second, nanosecond)
+        && is_gregorian_date_valid(g_year, g_month, g_day)
+    {
+        let tm = time::Tm {
             tm_sec: second,
             tm_min: minute,
             tm_hour: hour,
@@ -400,16 +413,26 @@ pub fn from_gregorian_components(g_year: i32, g_month: i32, g_day: i32, hour: i3
             tm_utcoff: 0,
             tm_nsec: nanosecond,
         };
-        return Some(at_utc(tm.to_timespec()))
+        return Some(at_utc(tm.to_timespec()));
     }
     None
 }
 
 /// Creates a new instance of Persian time from Persian date components
 // FIXME: Calculate the weekday without converting to Gregorian calendar
-pub fn from_persian_components(p_year: i32, p_month: i32, p_day: i32, hour: i32, minute: i32, second: i32, nanosecond: i32) -> Option<Tm> {
-    if is_time_valid(hour, minute, second, nanosecond) && is_persian_date_valid(p_year, p_month, p_day) {
-        let mut tm = Tm{
+pub fn from_persian_components(
+    p_year: i32,
+    p_month: i32,
+    p_day: i32,
+    hour: i32,
+    minute: i32,
+    second: i32,
+    nanosecond: i32,
+) -> Option<Tm> {
+    if is_time_valid(hour, minute, second, nanosecond)
+        && is_persian_date_valid(p_year, p_month, p_day)
+    {
+        let mut tm = Tm {
             tm_sec: second,
             tm_min: minute,
             tm_hour: hour,
@@ -423,7 +446,7 @@ pub fn from_persian_components(p_year: i32, p_month: i32, p_day: i32, hour: i32,
             tm_nsec: nanosecond,
         };
         tm.tm_wday = get_persian_weekday(time::at_utc(tm.to_timespec()).tm_wday);
-        return Some(tm)
+        return Some(tm);
     }
     None
 }
@@ -456,12 +479,56 @@ fn divider(num: i32, den: i32) -> i32 {
     }
 }
 
-fn get_jdn(year: i32, month: i32, day: i32) -> i32 {
-    let base = if year >= 0 {
-        year - 474
+const J_UTC_EPOCH_YEAR: i32 = 1348;
+const J_UTC_EPOCH_DIFF: i32 = 286;
+
+fn fixed_get_jdn(tm: &Tm) -> i32 {
+    let mut p: i32 = 0;
+    let s: i32;
+    let sd: i32;
+    let e: i32;
+    let ed: i32;
+    let mut f: i32 = 1;
+
+    if tm.tm_yday > 365 || tm.tm_yday < 0 {
+        return 0;
+    }
+
+    if tm.tm_year == J_UTC_EPOCH_YEAR {
+        p = tm.tm_yday - J_UTC_EPOCH_DIFF;
+        return p;
+    } else if tm.tm_year > J_UTC_EPOCH_YEAR {
+        s = J_UTC_EPOCH_YEAR + 1;
+        sd = J_UTC_EPOCH_DIFF;
+        e = tm.tm_year - 1;
+        ed = tm.tm_yday + 1;
     } else {
-        year - 473
+        f = -1;
+        s = tm.tm_year + 1;
+        sd = tm.tm_yday;
+        e = J_UTC_EPOCH_YEAR - 1;
+        ed = J_UTC_EPOCH_DIFF + 1;
+    }
+
+    for i in s..=e {
+        let inc = if is_persian_leap(i) { 366 } else { 365 };
+        p += inc;
+    }
+
+    let r = if is_persian_leap(s) {
+        366 - sd - 1
+    } else {
+        365 - sd - 1
     };
+
+    p += r + ed;
+    p *= f;
+
+    p
+}
+
+fn get_jdn(year: i32, month: i32, day: i32) -> i32 {
+    let base = if year >= 0 { year - 474 } else { year - 473 };
 
     let epy = 474 + (base % 2820);
 
@@ -471,7 +538,10 @@ fn get_jdn(year: i32, month: i32, day: i32) -> i32 {
         (month - 1) * 30 + 6
     };
 
-    day + md + (epy * 682 - 110) / 2816 + (epy - 1) * 365 + base / 2820 * 1029983 + 1948320
+    let res =
+        day + md + (epy * 682 - 110) / 2816 + (epy - 1) * 365 + base / 2820 * 1029983 + 1948320;
+    println!("{}", res);
+    res
 }
 
 fn get_persian_weekday(wd: i32) -> i32 {
@@ -483,19 +553,6 @@ fn get_persian_weekday(wd: i32) -> i32 {
         4 => 5,
         5 => 6,
         6 => 0,
-        _ => panic!("invalid weekday value of {}", wd),
-    }
-}
-
-fn get_gregorian_weekday(wd: i32) -> i32 {
-    match wd {
-        0 => 6,
-        1 => 0,
-        2 => 1,
-        3 => 2,
-        4 => 3,
-        5 => 4,
-        6 => 5,
         _ => panic!("invalid weekday value of {}", wd),
     }
 }
@@ -514,25 +571,11 @@ fn get_persian_yday(month: i32, day: i32) -> i32 {
         276, // Dey
         306, // Bahman
         336, // Esfand
-    ][month as usize] + day - 1
+    ][month as usize]
+        + day
+        - 1
 }
 
-fn get_gregorian_yday(year: i32, month: i32, day: i32) -> i32 {
-    [
-        [0, 0],
-        [31, 31],
-        [59, 60],
-        [90, 91],
-        [120, 121],
-        [151, 152],
-        [181, 182],
-        [212, 213],
-        [243, 244],
-        [273, 274],
-        [304, 305],
-        [334, 335],
-    ][month as usize][is_gregorian_leap(year) as usize] + day - 1
-}
 
 fn is_persian_leap(year: i32) -> bool {
     divider(25 * year + 11, 33) < 8
@@ -544,7 +587,7 @@ fn is_gregorian_leap(year: i32) -> bool {
 
 fn is_persian_date_valid(year: i32, month: i32, day: i32) -> bool {
     if month < 0 || month > 11 {
-        return false
+        return false;
     }
 
     [
@@ -560,12 +603,13 @@ fn is_persian_date_valid(year: i32, month: i32, day: i32) -> bool {
         [30, 30],
         [30, 30],
         [29, 30],
-    ][month as usize][is_persian_leap(year) as usize] >= day
+    ][month as usize][is_persian_leap(year) as usize]
+        >= day
 }
 
 fn is_gregorian_date_valid(year: i32, month: i32, day: i32) -> bool {
     if month < 0 || month > 11 {
-        return false
+        return false;
     }
 
     [
@@ -581,9 +625,17 @@ fn is_gregorian_date_valid(year: i32, month: i32, day: i32) -> bool {
         [31, 31],
         [30, 30],
         [31, 31],
-    ][month as usize][is_gregorian_leap(year) as usize] >= day
+    ][month as usize][is_gregorian_leap(year) as usize]
+        >= day
 }
 
 fn is_time_valid(hour: i32, minute: i32, second: i32, nanosecond: i32) -> bool {
-    !(hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 || nanosecond < 0 || nanosecond > 999999999)
+    !(hour < 0
+        || hour > 23
+        || minute < 0
+        || minute > 59
+        || second < 0
+        || second > 59
+        || nanosecond < 0
+        || nanosecond > 999999999)
 }

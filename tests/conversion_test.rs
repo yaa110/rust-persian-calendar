@@ -37,7 +37,8 @@ static PERSIAN_GREGORIAN: [[[i32; 5]; 2]; 9] = [
     ],
     [
         [1395, 9, 11, 0, 286],
-        [2016, 11, 31, 6, 365],
+        // 2016 a leap year
+        [2016, 11, 31, 6, 366],
     ],
 ];
 
@@ -167,3 +168,16 @@ fn compare_now_utc() {
     p_tm.tm_nsec = g_tm.tm_nsec;
     assert_eq!(p_tm.to_timespec(), g_tm.to_timespec());
 }
+
+#[test]
+fn leap_convertion_issue_no_4() {
+    assert_ne!(
+        ptime::from_persian_date(1399, 11, 30).unwrap(),
+        ptime::from_persian_date(1400, 0, 1).unwrap()
+    );
+    assert_ne!(
+        ptime::from_persian_date(1403, 11, 30).unwrap(),
+        ptime::from_persian_date(1404, 0, 1).unwrap()
+    );
+}
+

@@ -3,7 +3,7 @@ extern crate time;
 
 #[test]
 fn leap_years() {
-    let leap_years = [1325, 1329, 1333, 1337, 1370, 1375, 1379, 1383, 1387, 1391, 1395, 1399];
+    let leap_years = [1325, 1329, 1333, 1337, 1370, 1375, 1379, 1383, 1387, 1391, 1395, 1399, 1403];
     let mut tm = ptime::empty_tm();
     for year in leap_years.iter() {
         tm.tm_year = *year;
